@@ -1,0 +1,181 @@
+:root {
+    --primary-color: rgb(87, 127, 182);
+    --secondary-color: rgb(56, 81, 143);
+    --background-color: rgb(255, 255, 255);
+    --text-color: #1e3a8a; /* أزرق غامق واضح */
+    --icon-color: #275fae;
+    --transition-speed: 0.3s;
+    --border-radius: 12px;
+    
+    --primary-gradient: none; /* إزالة التدرج */
+    --secondary-gradient: none; /* إزالة التدرج */
+    
+}
+
+body {
+  background-image: url('../images/background for chatbot.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+body::before {
+    content: none; /* إزالة التأثير الجلو والتدرج */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Tajawal", sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: all var(--transition-speed) ease;
+    overflow: hidden;
+}
+
+.container {
+    text-align: center;
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.2); /* إرجاع التأثير الزجاجي */
+    backdrop-filter: blur(20px); /* إرجاع التأثير الزجاجي */
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 24px;
+    box-shadow: 0 12px 40px rgba(58, 123, 213, 0.25);
+    position: relative;
+    max-width: 600px;
+    width: 90%;
+    animation: fadeInUp 0.8s ease-out;
+}
+
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes borderGlow {
+    from {
+        opacity: 0.2;
+    }
+    to {
+        opacity: 0.4;
+    }
+}
+
+.logo-container {
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.logo {
+    width: 200px;
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(58, 123, 213, 0.3));
+    transition: all var(--transition-speed) ease;
+    animation: logoFloat 4s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+.logo:hover {
+    transform: scale(1.05);
+    filter: drop-shadow(0 6px 16px rgba(58, 123, 213, 0.4));
+}
+
+h1 {
+    font-size: 20px; /* نفس حجم h4 */
+    font-weight: 500; /* نفس وزن h4 */
+    margin-bottom: 30px; /* نفس المسافة h4 */
+    opacity: 0.9; /* نفس العتامة h4 */
+    max-width: 100%;
+    word-wrap: break-word;
+    line-height: 1.6; /* نفس الخط h4 */
+    padding: 0 20px; /* نفس المسافة الجانبية h4 */
+    color: #1e3a8a; /* أزرق غامق واضح */
+    text-shadow: none; /* إزالة التدرج والظل */
+}
+
+h1::after {
+    content: none; /* إزالة الخط المتدرج */
+}
+
+h4 {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 30px;
+    opacity: 0.9;
+    max-width: 100%;
+    word-wrap: break-word;
+    line-height: 1.6;
+    padding: 0 20px;
+    color: #1e3a8a; /* أزرق غامق واضح */
+}
+
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.action-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+}
+
+.action-button:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .container {
+        max-width: 90%;
+    }
+    .logo {
+        width: 150px;
+    }
+    h1 {
+        font-size: 14px; /* تقليل الحجم في الشاشات الصغيرة زي h4 */
+        padding: 0 10px; /* تقليل المسافة الجانبية زي h4 */
+        line-height: 1.4; /* تقليل المسافة بين الأسطر زي h4 */
+    }
+    h4 {
+        font-size: 14px;
+        padding: 0 10px;
+        line-height: 1.4;
+    }
+    .action-button {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+}

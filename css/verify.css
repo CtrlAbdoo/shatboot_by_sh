@@ -1,0 +1,108 @@
+:root {
+    --primary-color: #2c5f8b;
+    --secondary-color: rgb(92, 150, 188);
+    --background-color: #eef0f3;
+    --text-color: rgb(57, 95, 133);
+    --icon-color: #2c5f8b;
+    --transition-speed: 0.3s;
+    --border-radius: 12px;
+}
+
+body {
+  background-image: url('../images/background for chatbot.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+
+body.dark-mode {
+    --primary-color: rgb(50, 106, 196);
+    --secondary-color: #1e3a8a;
+    --background-color: #292A2D;
+    --text-color: #e2e8f0;
+    --icon-color: #e2e8f0;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Tajawal", sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: all var(--transition-speed) ease;
+}
+
+.container {
+    text-align: center;
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.logo-container {
+    margin-bottom: 20px;
+}
+
+.logo {
+    width: 200px;
+    height: auto;
+    object-fit: contain;
+}
+
+h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+p {
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+.action-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+    width: 100%;
+}
+
+.action-button:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .logo {
+        width: 150px;
+    }
+    h1 {
+        font-size: 20px;
+    }
+    p {
+        font-size: 14px;
+    }
+    .action-button {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+}

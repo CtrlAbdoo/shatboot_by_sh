@@ -1,0 +1,234 @@
+:root {
+    --primary-color: #2c5f8b;
+    --secondary-color: rgb(92, 150, 188);
+    --background-color: #eef0f3;
+    --text-color: rgb(57, 95, 133);
+    --input-border: #e2e8f0;
+    --icon-color: #2c5f8b;
+    --transition-speed: 0.3s;
+    --border-radius: 12px;
+    
+    --shadow-light: 0 4px 20px rgba(44, 95, 139, 0.15);
+    --shadow-medium: 0 8px 30px rgba(44, 95, 139, 0.2);
+    --shadow-heavy: 0 12px 40px rgba(44, 95, 139, 0.25);
+    --glass-bg: rgba(255, 255, 255, 0.52);
+    --glass-border: rgba(255, 255, 255, 0.4);
+}
+
+body {
+  background-image: url('../images/background for chatbot.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(1px);
+    z-index: -1;
+}
+
+body.dark-mode {
+    --primary-color: rgb(50, 106, 196);
+    --secondary-color: #1e3a8a;
+    --background-color: #292A2D;
+    --text-color: #e2e8f0;
+    --input-border: #4b5563;
+    --icon-color: #e2e8f0;
+    
+    --shadow-light: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --shadow-medium: 0 8px 30px rgba(0, 0, 0, 0.4);
+    --shadow-heavy: 0 12px 40px rgba(0, 0, 0, 0.5);
+    --glass-bg: rgba(0, 0, 0, 0.2);
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode::before {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(41, 42, 45, 0.6) 100%);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Tajawal", sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: all var(--transition-speed) ease;
+    overflow: hidden;
+}
+
+.container {
+    text-align: center;
+    padding: 40px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-heavy);
+    position: relative;
+    max-width: 400px;
+    width: 90%;
+    animation: fadeInUp 0.8s ease-out;
+}
+
+
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes borderGlow {
+    from {
+        opacity: 0.2;
+    }
+    to {
+        opacity: 0.4;
+    }
+}
+
+.logo-container {
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.logo {
+    width: 200px;
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(44, 95, 139, 0.3));
+    transition: all var(--transition-speed) ease;
+    animation: logoFloat 4s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+.logo:hover {
+    transform: scale(1.05);
+    filter: drop-shadow(0 6px 16px rgba(44, 95, 139, 0.4));
+}
+
+h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text-color);
+    text-shadow: 0 2px 4px rgba(44, 95, 139, 0.1);
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--input-border);
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    color: var(--text-color);
+    background: var(--glass-bg);
+    transition: border-color var(--transition-speed) ease;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-light);
+}
+
+.forgot-link {
+    display: block;
+    color: var(--primary-color);
+    text-decoration: none;
+    margin-bottom: 20px;
+    font-size: 14px;
+    transition: color var(--transition-speed) ease;
+}
+
+.forgot-link:hover {
+    color: var(--secondary-color);
+}
+
+.action-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+    width: 100%;
+}
+
+.action-button:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
+}
+
+.signup-link {
+    text-align: center;
+    margin-top: 15px;
+    color: var(--text-color);
+}
+
+.signup-link a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color var(--transition-speed) ease;
+}
+
+.signup-link a:hover {
+    color: var(--secondary-color);
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .logo {
+        width: 150px;
+    }
+    h1 {
+        font-size: 20px;
+    }
+    input {
+        padding: 8px;
+        font-size: 14px;
+    }
+    .action-button {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+    .forgot-link {
+        font-size: 12px;
+    }
+}
