@@ -40,9 +40,36 @@ const AppState = {
     rightSidebarOpen: false,
     conversationStarted: false,
     darkMode: localStorage.getItem("darkMode") === "true",
-    API_URL: "https://sha-bot.onrender.com/chat",
-    authToken: localStorage.getItem("token") // Load auth token from localStorage
+    // Primary and backup API URLs
+    API_URLS: [
+        "https://sha-bot.onrender.com/chat", // Primary URL
+        "https://corsproxy.io/?https://sha-bot.onrender.com/chat", // Modern CORS proxy (preferred)
+        "https://cors-anywhere.herokuapp.com/https://sha-bot.onrender.com/chat", // Fallback with CORS proxy
+        "https://api.allorigins.win/raw?url=https://sha-bot.onrender.com/chat", // Second fallback
+        "https://cors.bridged.cc/https://sha-bot.onrender.com/chat", // Third fallback
+        "https://thingproxy.freeboard.io/fetch/https://sha-bot.onrender.com/chat" // Fourth fallback
+    ],
+    // Configuration flags for deployment environment
+    isDeployed: window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1",
+    currentApiUrlIndex: 0, // Index of the currently active API URL
+    authToken: localStorage.getItem("token"), // Load auth token from localStorage
+    apiRetryCount: 0,
+    maxApiRetries: 3,
+    coldStartMessage: false, // Flag to track if we're handling a cold start
+    connectionTested: false  // Flag to indicate if we've tested the connection
 };
+
+// Helper function to get the current API URL
+function getCurrentApiUrl() {
+    return AppState.API_URLS[AppState.currentApiUrlIndex];
+}
+
+// Helper function to try the next API URL in the list
+function tryNextApiUrl() {
+    AppState.currentApiUrlIndex = (AppState.currentApiUrlIndex + 1) % AppState.API_URLS.length;
+    console.log(`Switching to API URL: ${getCurrentApiUrl()}`);
+    return getCurrentApiUrl();
+}
 
 /**
  * Initializes the application by setting up event listeners, loading data,
@@ -264,13 +291,30 @@ async function sendMessage() {
     adjustChatInputHeight();
     showTypingIndicator();
 
+    // Reset retry count for each new message
+    AppState.apiRetryCount = 0;
+    AppState.coldStartMessage = false;
+
     try {
         const botResponse = await sendToAPI(userMessage);
         AppState.currentMessages.push(botResponse);
         addMessageToChat(botResponse);
     } catch (error) {
         console.error("API Error:", error);
-        const errorMessageText = error.message.includes("Failed to fetch") ? "عذرًا، حدث خطأ في الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت." : "عذرًا، السيرفر غير متاح حاليًا. حاول مرة أخرى لاحقًا.";
+        let errorMessageText;
+        
+        if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+            errorMessageText = "عذرًا، حدث خطأ في الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت.";
+        } else if (error.message.includes("timeout") || AppState.coldStartMessage) {
+            errorMessageText = "الخادم قد يكون في وضع الاستعداد (Cold Start). سيتم محاولة الاتصال مرة أخرى تلقائيًا خلال لحظات...";
+        } else if (error.message.includes("CORS")) {
+            errorMessageText = "واجهنا مشكلة في الوصول إلى الخادم بسبب قيود الأمان (CORS). يرجى المحاولة مرة أخرى لاحقًا.";
+        } else if (error.status === 429) {
+            errorMessageText = "تم تجاوز عدد الطلبات المسموح بها. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.";
+        } else {
+            errorMessageText = "عذرًا، السيرفر غير متاح حاليًا. حاول مرة أخرى لاحقًا.";
+        }
+        
         const errorMessage = { 
             messageId: `msg_error_${Math.random().toString(36).substr(2, 9)}`,
             sender: "bot", 
@@ -359,38 +403,211 @@ function hideTypingIndicator() {
  * @param {object} userMessage - The user's message object.
  * @returns {Promise<object>} The bot's response message object.
  */
+/**
+ * Sends a message to the backend API with retry logic for cold starts.
+ * Includes CORS headers and better error handling.
+ * @param {object} userMessage - The user's message object.
+ * @returns {Promise<object>} The bot's response message object.
+ */
 async function sendToAPI(userMessage) {
-    const headers = { "Content-Type": "application/json" };
+    // Base headers
+    const headers = { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    };
+    
+    // Add authorization token if available
     if (AppState.authToken) {
         headers["Authorization"] = `Bearer ${AppState.authToken}`;
     }
-
-    const response = await fetch(AppState.API_URL, {
-        method: "POST",
-        headers: headers,
-        body: JSON.stringify({
-            // Backend expects `message`, not `text` for the user's input
-            userId: AppState.userId, // Send userId (guest or logged-in email)
-            conversationId: AppState.currentConversationId,
-            messageId: userMessage.messageId,
-            message: userMessage.text, // Ensure this matches backend expectation
-            timestamp: userMessage.timestamp
-        })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({})); // Try to parse error, default to empty obj
-        throw new Error(errorData.message || `API request failed with status ${response.status}`);
-    }
     
-    const data = await response.json();
-    // Ensure the response structure matches what the frontend expects
-    return { 
-        messageId: data.messageId || `msg_bot_${Math.random().toString(36).substr(2, 9)}`, // Use backend messageId if provided
-        sender: "bot", 
-        text: data.response, // Assuming backend sends response in `data.response`
-        timestamp: new Date().toISOString() 
-    };
+    // Add deployment-specific headers
+    if (AppState.isDeployed) {
+        // Add origin headers for CORS
+        headers["X-Requested-With"] = "XMLHttpRequest";
+        
+        // If using certain CORS proxies, we might need to adjust the Content-Type
+        const currentUrl = getCurrentApiUrl();
+        if (currentUrl.includes("allorigins") || currentUrl.includes("corsproxy.io") || 
+            currentUrl.includes("cors.bridged.cc")) {
+            // Some proxies require specific headers
+            headers["x-cors-api-key"] = "temp_" + Math.random().toString(36).substring(2);
+        }
+    }
+
+    // Create an AbortController to handle timeouts
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    try {
+        const apiUrl = getCurrentApiUrl();
+        console.log(`Trying API URL: ${apiUrl}`);
+        
+        // Adjust request options based on the URL being used
+        const fetchOptions = {
+            method: "POST",
+            headers: headers,
+            credentials: "omit", // Helps with CORS issues
+            mode: "cors",
+            signal: controller.signal,
+            body: JSON.stringify({
+                // Backend expects `message`, not `text` for the user's input
+                userId: AppState.userId, // Send userId (guest or logged-in email)
+                conversationId: AppState.currentConversationId,
+                messageId: userMessage.messageId,
+                message: userMessage.text, // Ensure this matches backend expectation
+                timestamp: userMessage.timestamp
+            })
+        };
+        
+        // Special handling for proxy services that require different request formats
+        if (apiUrl.includes("allorigins.win")) {
+            // For allorigins, we need to wrap our JSON in another POST parameter
+            fetchOptions.method = "GET"; // allorigins uses GET
+            delete fetchOptions.body; // Remove the body as we'll use URL params
+            const encodedParams = encodeURIComponent(JSON.stringify({
+                userId: AppState.userId,
+                conversationId: AppState.currentConversationId,
+                messageId: userMessage.messageId,
+                message: userMessage.text,
+                timestamp: userMessage.timestamp
+            }));
+            apiUrl = `${apiUrl}&method=POST&data=${encodedParams}`;
+        }
+        
+        const response = await fetch(apiUrl, fetchOptions);
+
+        clearTimeout(timeoutId); // Clear the timeout
+
+        if (!response.ok) {
+            // Check if this could be a cold start issue (usually 503 or 504)
+            if ((response.status === 503 || response.status === 504) && AppState.apiRetryCount < AppState.maxApiRetries) {
+                AppState.apiRetryCount++;
+                AppState.coldStartMessage = true;
+                
+                // Add a "waiting" message to the chat
+                const waitingMessage = {
+                    messageId: `msg_waiting_${Math.random().toString(36).substr(2, 9)}`,
+                    sender: "bot",
+                    text: `الخادم في وضع الاستعداد. جاري إعادة المحاولة (${AppState.apiRetryCount}/${AppState.maxApiRetries})...`,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Only show waiting message if it's not the first retry
+                if (AppState.apiRetryCount > 1) {
+                    AppState.currentMessages.push(waitingMessage);
+                    addMessageToChat(waitingMessage);
+                }
+                
+                // Wait for a few seconds before retrying
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Retry the API call
+                return sendToAPI(userMessage);
+            }
+            
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `API request failed with status ${response.status}`);
+        }
+        
+        let data;
+        try {
+            data = await response.json();
+            
+            // Handle special responses from CORS proxies
+            if (data && data.contents && getCurrentApiUrl().includes("allorigins")) {
+                // allorigins wraps the actual response in a 'contents' property
+                data = JSON.parse(data.contents);
+            } else if (data && data.status && data.data && getCurrentApiUrl().includes("corsproxy.io")) {
+                // corsproxy.io wraps the response in a 'data' property
+                data = data.data;
+            }
+        } catch (parseError) {
+            console.error("Error parsing JSON response:", parseError);
+            // Try the next API URL if JSON parsing fails
+            if (AppState.currentApiUrlIndex < AppState.API_URLS.length - 1) {
+                tryNextApiUrl();
+                return sendToAPI(userMessage);
+            } else {
+                throw new Error("Failed to parse API response");
+            }
+        }
+        
+        // Reset retry count on successful response
+        AppState.apiRetryCount = 0;
+        
+        // Ensure the response structure matches what the frontend expects
+        return { 
+            messageId: data.messageId || `msg_bot_${Math.random().toString(36).substr(2, 9)}`, // Use backend messageId if provided
+            sender: "bot", 
+            text: data.response, // Assuming backend sends response in `data.response`
+            timestamp: new Date().toISOString() 
+        };
+    } catch (error) {
+        clearTimeout(timeoutId);
+        
+        // Handle timeout errors
+        if (error.name === "AbortError") {
+            throw new Error("timeout: Request took too long to complete");
+        }
+        
+        // Handle retry for network errors
+        // Handle CORS and network errors by trying alternative API URLs
+        if ((error.message.includes("Failed to fetch") || 
+             error.message.includes("NetworkError") || 
+             error.message.includes("CORS") ||
+             error.name === "TypeError")) {
+            
+            // Try switching to another API URL if we haven't exhausted all options
+            if (AppState.currentApiUrlIndex < AppState.API_URLS.length - 1) {
+                const newUrl = tryNextApiUrl();
+                const switchMessage = {
+                    messageId: `msg_switch_${Math.random().toString(36).substr(2, 9)}`,
+                    sender: "bot",
+                    text: `جاري تغيير مسار الاتصال للتغلب على مشاكل CORS...`,
+                    timestamp: new Date().toISOString()
+                };
+                
+                AppState.currentMessages.push(switchMessage);
+                addMessageToChat(switchMessage);
+                
+                // Wait briefly before trying the new URL
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Retry with the new URL
+                return sendToAPI(userMessage);
+            }
+            // If we've tried all URLs, fall back to normal retry logic
+            else if (AppState.apiRetryCount < AppState.maxApiRetries) {
+                AppState.apiRetryCount++;
+                
+                // Reset to the first URL and try again
+                AppState.currentApiUrlIndex = 0;
+                
+                // Add a "waiting" message to the chat
+                const waitingMessage = {
+                    messageId: `msg_waiting_${Math.random().toString(36).substr(2, 9)}`,
+                    sender: "bot",
+                    text: `جاري إعادة محاولة الاتصال (${AppState.apiRetryCount}/${AppState.maxApiRetries})...`,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Only show waiting message if it's not the first retry
+                if (AppState.apiRetryCount > 1) {
+                    AppState.currentMessages.push(waitingMessage);
+                    addMessageToChat(waitingMessage);
+                }
+                
+                // Wait for a few seconds before retrying
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Retry the API call
+                return sendToAPI(userMessage);
+            }
+        }
+        
+        throw error; // Rethrow if not handled by retry logic
+    }
 }
 
 /**
@@ -618,8 +835,77 @@ function isMobile() {
     return window.innerWidth < 769; // Example breakpoint
 }
 
+// Test API connectivity on startup
+async function testApiConnectivity() {
+    if (AppState.connectionTested) return;
+    
+    console.log("Testing API connectivity...");
+    console.log("Is deployed environment:", AppState.isDeployed);
+    
+    // Create a test message that won't be displayed
+    const testMessage = { 
+        messageId: `msg_test_${Math.random().toString(36).substr(2, 9)}`,
+        sender: "user", 
+        text: "test_connection", 
+        timestamp: new Date().toISOString() 
+    };
+    
+    // In a deployed environment, start with a CORS proxy URL
+    if (AppState.isDeployed && AppState.currentApiUrlIndex === 0) {
+        console.log("Deployed environment detected, starting with a CORS proxy");
+        AppState.currentApiUrlIndex = 1; // Start with the first proxy URL instead
+    }
+    
+    try {
+        // For more reliable testing, use OPTIONS instead of HEAD for CORS preflight check
+        // Some proxies don't support HEAD requests properly
+        const testHeaders = {
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+        };
+        
+        const testUrl = getCurrentApiUrl();
+        console.log(`Testing connectivity to: ${testUrl}`);
+        
+        const response = await fetch(testUrl, {
+            method: "OPTIONS", // Better for CORS preflight
+            headers: testHeaders,
+            mode: "cors",
+            credentials: "omit"
+        });
+        
+        console.log(`API connection test result: ${response.status}`);
+        AppState.connectionTested = true;
+    } catch (error) {
+        console.warn("Initial API connection test failed, trying alternative URL", error);
+        tryNextApiUrl();
+        
+        // Try one more time with the new URL
+        try {
+            const secondTestUrl = getCurrentApiUrl();
+            console.log(`Trying second connectivity test with: ${secondTestUrl}`);
+            
+            await fetch(secondTestUrl, {
+                method: "OPTIONS",
+                mode: "cors",
+                credentials: "omit"
+            });
+            
+            console.log("Second connectivity test successful");
+        } catch (secondError) {
+            console.warn("Second API test failed as well", secondError);
+            // Just continue with the next URL in sequence during actual use
+        }
+        
+        AppState.connectionTested = true;
+    }
+}
+
 // Initialize the application when the DOM is fully loaded.
-document.addEventListener("DOMContentLoaded", initApp);
+document.addEventListener("DOMContentLoaded", () => {
+    initApp();
+    testApiConnectivity();
+});
 
 // هنا الحاجات الخاصه ب المودالز وكدا 
 
